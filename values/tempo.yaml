@@ -1,0 +1,43 @@
+# ================================================================
+# Tempo — tracing distribué
+# ================================================================
+tempo:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+nodeSelector:
+  monitoring: "true"
+
+tolerations:
+  - key: dedicated
+    operator: Equal
+    value: monitoring
+    effect: NoSchedule
+
+persistence:
+  enabled: true
+  storageClassName: local-path
+  size: 5Gi
+
+service:
+  type: ClusterIP
+
+serviceMonitor:
+  enabled: true
+
+traces:
+  otlp:
+    grpc:
+      enabled: true
+    http:
+      enabled: true
+  zipkin:
+    enabled: true
+  jaeger:
+    thriftHttp:
+      enabled: true

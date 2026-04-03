@@ -1,0 +1,184 @@
+# ================================================================
+# kube-prometheus-stack — values production-grade
+# Cible : k8s2-worker1 (monitoring=true, taint dedicated=monitoring)
+# ================================================================
+
+fullnameOverride: "kps"
+
+# ── Toleration globale pour le taint monitoring ──
+commonTolerations: &monitoring-toleration
+  - key: dedicated
+    operator: Equal
+    value: monitoring
+    effect: NoSchedule
+
+# ── Prometheus Operator ──
+prometheusOperator:
+  nodeSelector:
+    monitoring: "true"
+  tolerations: *monitoring-toleration
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ── Prometheus ──
+prometheus:
+  prometheusSpec:
+    nodeSelector:
+      monitoring: "true"
+    tolerations: *monitoring-toleration
+    retention: 15d
+    retentionSize: "8GB"
+    replicas: 1
+    resources:
+      requests:
+        cpu: 300m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1500Mi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+    # Scrape tous les ServiceMonitors sans restriction de namespace
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+# ── Grafana ──
+grafana:
+  nodeSelector:
+    monitoring: "true"
+  tolerations: *monitoring-toleration
+  adminPassword: "Gr@fana2026!"
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 3Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 200Mi
+    limits:
+      cpu: 300m
+      memory: 400Mi
+  service:
+    type: NodePort
+    nodePort: 32000
+  # Datasources préconfigurées
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki-gateway.monitoring.svc.cluster.local
+      access: proxy
+      isDefault: false
+    - name: Tempo
+      type: tempo
+      url: http://tempo.monitoring.svc.cluster.local:3100
+      access: proxy
+      isDefault: false
+  # Dashboards communautaires auto-importés
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: "Kubernetes"
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      kubernetes-cluster:
+        gnetId: 7249
+        revision: 1
+        datasource: Prometheus
+      node-exporter:
+        gnetId: 1860
+        revision: 37
+        datasource: Prometheus
+      kubernetes-pods:
+        gnetId: 6781
+        revision: 1
+        datasource: Prometheus
+
+# ── Alertmanager ──
+alertmanager:
+  alertmanagerSpec:
+    nodeSelector:
+      monitoring: "true"
+    tolerations: *monitoring-toleration
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+# ── node-exporter (DaemonSet — tous les nœuds) ──
+nodeExporter:
+  enabled: true
+  tolerations:
+    - operator: Exists   # tolère TOUS les taints → tourne partout
+
+# ── kube-state-metrics ──
+kubeStateMetrics:
+  enabled: true
+
+kube-state-metrics:
+  nodeSelector:
+    monitoring: "true"
+  tolerations: *monitoring-toleration
+
+# ── Alertes par défaut (garder les règles Kubernetes) ──
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: true
+    configReloaders: true
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlas: true
+    kubeControllerManager: true
+    kubelet: true
+    kubeProxy: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeSchedulerAlerting: true
+    kubeSchedulerRecording: true
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
