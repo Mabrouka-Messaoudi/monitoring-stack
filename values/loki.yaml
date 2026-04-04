@@ -1,5 +1,7 @@
+deploymentMode: SingleBinary
+
 # ================================================================
-# Loki — mode single binary (lab), production: mode distributed
+# Loki — SingleBinary (PFE lab), upgrade path: distributed
 # ================================================================
 loki:
   auth_enabled: false
@@ -17,9 +19,13 @@ loki:
           prefix: loki_index_
           period: 24h
   limits_config:
-    retention_period: 744h   # 31 jours
+    retention_period: 744h
     ingestion_rate_mb: 16
     ingestion_burst_size_mb: 32
+
+# ── Tolerations helper (reused across all components) ────────────
+# All components that must land on the monitoring node need this
+# toleration explicitly — the chart does NOT inherit it globally.
 
 singleBinary:
   replicas: 1
@@ -42,16 +48,10 @@ singleBinary:
     storageClass: local-path
     size: 8Gi
 
-# Promtail — DaemonSet sur tous les nœuds
-promtail:
-  enabled: true
-  tolerations:
-    - operator: Exists
-  config:
-    clients:
-      - url: http://loki-headless.monitoring.svc.cluster.local:3100/loki/api/v1/push
-
-gateway:
+# ── Memcached — results cache ─────────────────────────────────────
+# Must explicitly tolerate the monitoring taint to land on worker1.
+# Without this, scheduler rejects worker1 and worker2/3 have no RAM.
+resultsCache:
   enabled: true
   nodeSelector:
     monitoring: "true"
@@ -60,7 +60,57 @@ gateway:
       operator: Equal
       value: monitoring
       effect: NoSchedule
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
+# ── Memcached — chunks cache ──────────────────────────────────────
+chunksCache:
+  enabled: true
+  nodeSelector:
+    monitoring: "true"
+  tolerations:
+    - key: dedicated
+      operator: Equal
+      value: monitoring
+      effect: NoSchedule
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ── Promtail — DaemonSet on ALL nodes ────────────────────────────
+# Tolerates everything so it collects logs from every node including
+# the control-plane and the tainted monitoring node.
+promtail:
+  enabled: true
+  tolerations:
+    - operator: Exists   # wildcard — intentional for a DaemonSet
+  config:
+    clients:
+      - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+
+# ── Gateway — disabled in SingleBinary mode ───────────────────────
+gateway:
+  enabled: false
+
+# ── SimpleScalable targets — explicitly zeroed ───────────────────
+# Prevents the chart validator from complaining about mixed modes.
+write:
+  replicas: 0
+read:
+  replicas: 0
+backend:
+  replicas: 0
+
+# ── Self-monitoring — disabled for lab simplicity ────────────────
 test:
   enabled: false
 monitoring:

@@ -1,0 +1,41 @@
+# ================================================================
+# Promtail — DaemonSet log collector
+# Runs on ALL nodes (tolerates all taints)
+# ================================================================
+daemonset:
+  enabled: true
+
+tolerations:
+  - operator: Exists   # wildcard — must run on every node
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+config:
+  clients:
+    - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+
+  snippets:
+    # Enrich logs with Kubernetes metadata
+    pipelineStages:
+      - cri: {}
+      - labeldrop:
+          - filename
+    extraRelabelConfigs:
+      - action: replace
+        source_labels: [__meta_kubernetes_pod_node_name]
+        target_label: node_name
+      - action: replace
+        source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - action: replace
+        source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      - action: replace
+        source_labels: [__meta_kubernetes_pod_container_name]
+        target_label: container
