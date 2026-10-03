@@ -27,6 +27,10 @@ prometheusOperator:
 
 # ── Prometheus ──
 prometheus:
+  # Exposé en NodePort : utilisé par le collecteur de données AIOps
+  service:
+    type: NodePort
+    nodePort: 30090
   prometheusSpec:
     nodeSelector:
       monitoring: "true"
@@ -34,6 +38,7 @@ prometheus:
     retention: 15d
     retentionSize: "8GB"
     replicas: 1
+    scrapeInterval: 15s
     resources:
       requests:
         cpu: 300m
@@ -59,7 +64,11 @@ grafana:
   nodeSelector:
     monitoring: "true"
   tolerations: *monitoring-toleration
-  adminPassword: "Gr@fana2026!"
+  # Mot de passe lu depuis le Secret grafana-admin créé par install.sh
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
   persistence:
     enabled: true
     storageClassName: local-path
@@ -151,12 +160,25 @@ kube-state-metrics:
     monitoring: "true"
   tolerations: *monitoring-toleration
 
+# ── Composants du control plane (kubeadm) ──
+# kubeadm fait écouter etcd, kube-scheduler, kube-controller-manager et kube-proxy
+# sur 127.0.0.1 : leurs cibles seraient toujours "down" et déclencheraient des
+# alertes permanentes. Leur supervision est désactivée volontairement.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
 # ── Alertes par défaut (garder les règles Kubernetes) ──
 defaultRules:
   create: true
   rules:
     alertmanager: true
-    etcd: true
+    etcd: false
     configReloaders: true
     general: true
     k8s: true
@@ -164,17 +186,17 @@ defaultRules:
     kubeApiserverBurnrate: true
     kubeApiserverHistogram: true
     kubeApiserverSlas: true
-    kubeControllerManager: true
+    kubeControllerManager: false
     kubelet: true
-    kubeProxy: true
+    kubeProxy: false
     kubePrometheusGeneral: true
     kubePrometheusNodeRecording: true
     kubernetesApps: true
     kubernetesResources: true
     kubernetesStorage: true
     kubernetesSystem: true
-    kubeSchedulerAlerting: true
-    kubeSchedulerRecording: true
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
     kubeStateMetrics: true
     network: true
     node: true

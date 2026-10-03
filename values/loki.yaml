@@ -86,16 +86,8 @@ chunksCache:
       cpu: 500m
       memory: 512Mi
 
-# ── Promtail — DaemonSet on ALL nodes ────────────────────────────
-# Tolerates everything so it collects logs from every node including
-# the control-plane and the tainted monitoring node.
-promtail:
-  enabled: true
-  tolerations:
-    - operator: Exists   # wildcard — intentional for a DaemonSet
-  config:
-    clients:
-      - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+# Promtail est installé séparément (chart grafana/promtail, values/promtail.yaml) :
+# le chart grafana/loki ne contient pas de sous-chart Promtail.
 
 # ── Gateway — disabled in SingleBinary mode ───────────────────────
 gateway:
