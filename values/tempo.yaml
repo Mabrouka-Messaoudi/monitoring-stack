@@ -1,5 +1,8 @@
 # ================================================================
-# Tempo — tracing distribué
+# Tempo — tracing distribué (chart grafana/tempo)
+# nodeSelector, tolerations, persistence, service et serviceMonitor sont des
+# clés de PREMIER niveau du chart. Récepteurs : Zipkin (9411, utilisé par les
+# microservices Spring) et OTLP. API de requête et métriques : port 3200.
 # ================================================================
 tempo:
   resources:
@@ -9,35 +12,29 @@ tempo:
     limits:
       cpu: 500m
       memory: 512Mi
-
+  receivers:
+    zipkin:
+      endpoint: 0.0.0.0:9411
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
 nodeSelector:
-  monitoring: "true"
-
+  monitoring: 'true'
 tolerations:
-  - key: dedicated
-    operator: Equal
-    value: monitoring
-    effect: NoSchedule
-
+- key: dedicated
+  operator: Equal
+  value: monitoring
+  effect: NoSchedule
 persistence:
   enabled: true
   storageClassName: local-path
   size: 5Gi
-
 service:
   type: ClusterIP
-
 serviceMonitor:
   enabled: true
-
-traces:
-  otlp:
-    grpc:
-      enabled: true
-    http:
-      enabled: true
-  zipkin:
-    enabled: true
-  jaeger:
-    thriftHttp:
-      enabled: true
+  additionalLabels:
+    release: kube-prometheus-stack

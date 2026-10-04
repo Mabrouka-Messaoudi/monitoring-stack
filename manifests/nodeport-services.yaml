@@ -29,6 +29,6 @@ spec:
     app.kubernetes.io/instance: tempo
   ports:
     - name: http
-      port: 3100
-      targetPort: 3100
+      port: 3200
+      targetPort: 3200
       nodePort: 30622

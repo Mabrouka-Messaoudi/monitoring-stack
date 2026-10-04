@@ -71,7 +71,7 @@ Ordre recommandé : `cluster-k8s`, puis `monitoring-stack`, puis `microservices-
 | Tempo | `http://<IP d'un nœud>:30622` | Collecteur AIOps (TraceQL) |
 
 Depuis le cluster, les microservices envoient leurs logs à `http://loki.monitoring:3100` et leurs traces à
-`http://tempo.monitoring:9411` (Zipkin).
+`http://tempo.monitoring:9411` (Zipkin). L'API de requête de Tempo écoute sur le port 3200.
 
 ## Choix techniques et limites
 
